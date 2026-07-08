@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import DiffViewer from "@/components/DiffViewer";
 import FolderPicker from "@/components/FolderPicker";
 import styles from "./page.module.css";
@@ -12,6 +12,8 @@ type DiffResponse = {
   error?: string;
 };
 
+const STORAGE_KEY = "warrant:lastQuery";
+
 export default function Home() {
   const [repoPath, setRepoPath] = useState("");
   const [commit, setCommit] = useState("");
@@ -19,6 +21,27 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // One-time sync from localStorage (unavailable during SSR) after mount, so
+  // server-rendered and hydrated markup match on the first pass.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const parsed: { repoPath?: string; commit?: string } = JSON.parse(saved);
+      /* eslint-disable react-hooks/set-state-in-effect --
+         Restoring state from localStorage on mount, not a data fetch. */
+      if (parsed.repoPath) setRepoPath(parsed.repoPath);
+      if (parsed.commit) setCommit(parsed.commit);
+      /* eslint-enable react-hooks/set-state-in-effect */
+    } catch {
+      // Ignore malformed or inaccessible storage.
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ repoPath, commit }));
+  }, [repoPath, commit]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -133,7 +133,7 @@
 
 .diffCard {
   width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);

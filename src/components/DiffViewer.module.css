@@ -1,0 +1,148 @@
+.layout {
+  display: flex;
+  align-items: stretch;
+  max-height: 78vh;
+}
+
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+}
+
+.sidebarHeader {
+  position: sticky;
+  top: 0;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-fg-muted);
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fileList {
+  list-style: none;
+}
+
+.fileItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  color: var(--color-fg);
+}
+
+.fileItem:hover {
+  background: var(--color-bg);
+}
+
+.fileItemActive {
+  background: var(--color-bg);
+  border-left-color: var(--color-accent);
+}
+
+.fileItemRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fileStatusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statusModified {
+  background: #d29922;
+}
+
+.statusAdded {
+  background: #3fb950;
+}
+
+.statusDeleted {
+  background: #f85149;
+}
+
+.statusRenamed {
+  background: var(--color-accent);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.fileStats {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.statsAdded {
+  color: #2e9440;
+}
+
+.statsDeleted {
+  color: #d1242f;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/*
+ * diff2html's line-number cells are `position: absolute` with no top/left,
+ * relying on the browser's "static position" fallback. That fallback is
+ * computed once against the nearest *positioned* ancestor and does not
+ * track later scrolling of intermediate containers. diff2html's own CSS
+ * never declares that positioned ancestor, so without this the cells use
+ * <body> as their containing block and visually detach the moment any
+ * ancestor here scrolls.
+ */
+.content :global(.d2h-file-side-diff) {
+  position: relative;
+  overflow-x: hidden;
+}
+
+/*
+ * Wrap long code lines instead of relying on horizontal scroll. This must
+ * target only `.d2h-code-line-ctn` (the leaf span holding the real text) —
+ * diff2html's line template has real newlines/indentation *between* tags
+ * inside `.d2h-code-side-line`, and applying pre-wrap that high up makes
+ * the browser render that template formatting as extra blank lines.
+ */
+.content :global(.d2h-code-line-ctn) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Rows get stretched in JS to match their taller counterpart on the other
+   side; keep short-side content pinned to the top of that extra space. */
+.content :global(.d2h-file-side-diff) td {
+  vertical-align: top;
+}
+
+.emptyState {
+  padding: 20px;
+  color: var(--color-fg-muted);
+  font-size: 14px;
+}
