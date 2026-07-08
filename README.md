@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Warrant
 
-## Getting Started
+로컬 git 저장소의 특정 커밋을 선택하면 변경 전/후 diff를 나란히 보여주고, Claude로 AI 코드 리뷰(인라인 코멘트 포함)를 받을 수 있는 로컬 웹 앱입니다.
 
-First, run the development server:
+## 사전 준비물
+
+압축을 풀기 전에 아래 프로그램이 설치되어 있어야 합니다.
+
+1. **Node.js 20 이상** — https://nodejs.org 에서 LTS 버전 설치
+2. **Git** — https://git-scm.com 에서 설치 (`git` 명령이 터미널에서 실행되어야 합니다)
+3. **Claude Code CLI** (AI 리뷰 기능을 쓰려면 필요, 없어도 diff 비교 자체는 가능)
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   claude login
+   ```
+   위 명령으로 로그인해두면, Warrant는 별도의 API 키 설정 없이 로그인된 Claude 계정(Pro/Max 구독 또는 API 키)을 그대로 사용해 리뷰를 생성합니다.
+
+## 실행 방법
+
+### 방법 1: `start.bat` 더블클릭 (Windows, 가장 간단)
+
+압축을 푼 폴더에서 `start.bat` 파일을 더블클릭하세요. 처음 실행 시 자동으로 `npm install` → 빌드 → 서버 실행까지 진행되고, 브라우저가 자동으로 열립니다. 이후 실행부터는 설치 과정 없이 바로 서버가 시작됩니다.
+
+### 방법 2: 터미널에서 직접 실행
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+이후 브라우저에서 http://localhost:3000 접속.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+개발 중 코드를 수정하며 확인하고 싶다면 `npm run build && npm start` 대신 `npm run dev`를 사용하세요.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 사용 방법
 
-## Learn More
+1. **저장소 로컬 경로** 입력란에 비교하고 싶은 git 저장소의 로컬 경로를 입력하거나 `찾아보기...` 버튼으로 폴더를 선택합니다.
+2. 경로를 입력하면 하단에 해당 저장소의 **최근 커밋 목록**이 표시됩니다. 목록에서 커밋을 클릭하면 커밋 ID 입력란에 자동으로 채워집니다. (직접 커밋 해시를 입력해도 됩니다.)
+3. **비교하기**를 누르면 해당 커밋과 부모 커밋 사이의 변경 사항이 좌우로 비교되어 표시됩니다.
+4. **AI 리뷰 받기**를 누르면 Claude가 변경된 코드를 저장소의 다른 코드까지 참고해 검토하고, 문제가 있는 줄에 GitHub MR 코멘트처럼 인라인 리뷰를 답니다. (Claude CLI 로그인이 되어 있어야 동작합니다.)
 
-To learn more about Next.js, take a look at the following resources:
+## 문제 해결
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **"claude CLI를 찾을 수 없습니다" 오류**: `npm install -g @anthropic-ai/claude-code` 설치 후 `claude login`으로 로그인했는지 확인하세요.
+- **"지정한 경로는 git 저장소가 아닙니다" 오류**: 입력한 경로가 `.git` 폴더를 포함한 저장소 루트인지 확인하세요.
+- **포트 3000이 이미 사용 중**: 다른 프로그램이 3000번 포트를 쓰고 있다면 `set PORT=3001 && npm start` (cmd) 또는 `$env:PORT=3001; npm start` (PowerShell)처럼 포트를 바꿔 실행하세요.
