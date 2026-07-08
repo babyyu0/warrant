@@ -18,7 +18,23 @@ type ReviewResponse = {
   error?: string;
 };
 
+type CommitLogEntry = {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  message: string;
+};
+
+type GitLogResponse = {
+  commits?: CommitLogEntry[];
+  error?: string;
+};
+
 const STORAGE_KEY = "warrant:lastQuery";
+// Avoids firing a git-log request on every keystroke while the user is
+// still typing/pasting a repo path.
+const GIT_LOG_DEBOUNCE_MS = 400;
 
 export default function Home() {
   const [repoPath, setRepoPath] = useState("");
@@ -33,6 +49,9 @@ export default function Home() {
   const [reviewComments, setReviewComments] = useState<ReviewComment[]>([]);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [gitLog, setGitLog] = useState<CommitLogEntry[]>([]);
+  const [gitLogError, setGitLogError] = useState<string | null>(null);
+  const [gitLogLoading, setGitLogLoading] = useState(false);
 
   // One-time sync from localStorage (unavailable during SSR) after mount, so
   // server-rendered and hydrated markup match on the first pass.
@@ -54,6 +73,47 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ repoPath, commit }));
   }, [repoPath, commit]);
+
+  // Shows recent commits for whatever repo path is currently typed in, so the
+  // user can find a commit ID to compare without leaving the app. Only
+  // relevant before a comparison is run — once `diff` is set, the diff view
+  // takes over and this becomes moot.
+  useEffect(() => {
+    if (diff !== null) return;
+    if (!repoPath.trim()) {
+      /* eslint-disable react-hooks/set-state-in-effect --
+         Clearing derived UI state (not a data fetch) when the path input is emptied. */
+      setGitLog([]);
+      setGitLogError(null);
+      /* eslint-enable react-hooks/set-state-in-effect */
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setGitLogLoading(true);
+      setGitLogError(null);
+      try {
+        const params = new URLSearchParams({ repoPath });
+        const res = await fetch(`/api/gitlog?${params.toString()}`);
+        const data: GitLogResponse = await res.json();
+
+        if (!res.ok) {
+          setGitLogError(data.error ?? "git log를 가져오는 중 오류가 발생했습니다.");
+          setGitLog([]);
+          return;
+        }
+
+        setGitLog(data.commits ?? []);
+      } catch {
+        setGitLogError("서버 요청에 실패했습니다.");
+        setGitLog([]);
+      } finally {
+        setGitLogLoading(false);
+      }
+    }, GIT_LOG_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+  }, [repoPath, diff]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -150,6 +210,36 @@ export default function Home() {
         </div>
 
         {error && <div className={styles.errorBanner}>{error}</div>}
+
+        {diff === null && repoPath.trim() !== "" && (
+          <div className={styles.card}>
+            <div className={styles.gitLogHeader}>최근 커밋{gitLogLoading ? " · 불러오는 중..." : ""}</div>
+            {gitLogError && <div className={styles.errorBanner}>{gitLogError}</div>}
+            {!gitLogError && !gitLogLoading && gitLog.length === 0 && (
+              <p className={styles.gitLogEmpty}>커밋 내역이 없습니다.</p>
+            )}
+            {gitLog.length > 0 && (
+              <ul className={styles.gitLogList}>
+                {gitLog.map((entry) => (
+                  <li key={entry.hash}>
+                    <button
+                      type="button"
+                      className={styles.gitLogItem}
+                      onClick={() => setCommit(entry.shortHash)}
+                      title={`${entry.shortHash} 를 커밋 ID로 사용`}
+                    >
+                      <span className={styles.gitLogHash}>{entry.shortHash}</span>
+                      <span className={styles.gitLogMessage}>{entry.message}</span>
+                      <span className={styles.gitLogMeta}>
+                        {entry.author} · {entry.date}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {diff !== null && diff.trim() !== "" && (
           <div className={styles.reviewBar}>

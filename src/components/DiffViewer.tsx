@@ -68,11 +68,10 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
     const container = contentRef.current;
     if (!container) return;
 
-    function insertComments(): HTMLElement | null {
+    function insertComments(): void {
       container!.querySelectorAll(`.${INJECTED_ROW_CLASS}`).forEach((el) => el.remove());
-      if (comments.length === 0) return null;
+      if (comments.length === 0) return;
 
-      let firstCommentRow: HTMLElement | null = null;
       const wrappers = Array.from(container!.querySelectorAll(".d2h-file-wrapper"));
       const wrapperByFile = new Map<string, Element>();
       wrappers.forEach((wrapper, index) => {
@@ -121,7 +120,6 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
         commentCell.appendChild(commentBox);
         commentRow.appendChild(commentCell);
         targetRows[rowIndex].after(commentRow);
-        firstCommentRow ??= commentRow;
 
         const otherRows = Array.from(otherPane.querySelectorAll("tr"));
         const spacerRow = document.createElement("tr");
@@ -131,8 +129,6 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
         spacerRow.appendChild(spacerCell);
         (otherRows[rowIndex] ?? otherRows[otherRows.length - 1])?.after(spacerRow);
       }
-
-      return firstCommentRow;
     }
 
     // Batched into reset-all / measure-all / write-all passes instead of
@@ -174,13 +170,33 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
       });
     }
 
-    const firstCommentRow = insertComments();
+    insertComments();
     equalizeRowHeights();
 
-    // The commented file/line is often well below the fold (or in a
-    // different file than whatever's on screen) — jump straight to it so a
-    // fresh review's comments aren't silently off-screen.
-    firstCommentRow?.scrollIntoView({ block: "center" });
+    // Some re-renders reset this container's HTML back to diff2html's pristine
+    // output (losing whatever we just injected above), including the one
+    // triggered by clicking a file in the sidebar — so scrolling has to be
+    // decided fresh on every run of this effect, not just the first one.
+    // If a file is active (the user just clicked it), jump to that file's
+    // first comment, or its top if it has none. Otherwise (initial load of a
+    // fresh review) jump to the first comment anywhere so it isn't silently
+    // off-screen.
+    let scrollTarget: Element | null = null;
+    let scrollBlock: ScrollLogicalPosition = "start";
+    if (activeId) {
+      const activeWrapper = document.getElementById(activeId);
+      const firstCommentBox = activeWrapper?.querySelector(`.${styles.commentBox}`) ?? null;
+      if (firstCommentBox) {
+        scrollTarget = firstCommentBox.closest("tr");
+        scrollBlock = "center";
+      } else {
+        scrollTarget = activeWrapper;
+      }
+    } else {
+      scrollTarget = container.querySelector(`.${styles.commentBox}`)?.closest("tr") ?? null;
+      scrollBlock = "center";
+    }
+    scrollTarget?.scrollIntoView({ block: scrollBlock });
 
     let resizeTimeout: ReturnType<typeof setTimeout>;
     const onResize = () => {
@@ -193,14 +209,14 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
       clearTimeout(resizeTimeout);
       window.removeEventListener("resize", onResize);
     };
-  }, [diffHtml, comments, files]);
+  }, [diffHtml, comments, files, activeId]);
 
   // diff2html already stamps each `.d2h-file-wrapper` with this same deterministic
-  // id, so we can link straight to it instead of patching the DOM after render.
+  // id, so setting it as the active file is enough — the effect above re-runs
+  // on activeId changes and handles scrolling to it (and to its first comment,
+  // if any).
   function goToFile(file: DiffFile) {
-    const id = getHtmlId(file);
-    setActiveId(id);
-    document.getElementById(id)?.scrollIntoView({ block: "start" });
+    setActiveId(getHtmlId(file));
   }
 
   if (files.length === 0) {

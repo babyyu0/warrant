@@ -46,6 +46,42 @@ export function validateCommit(commit: string): void {
   }
 }
 
+export type CommitLogEntry = {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  message: string;
+};
+
+export async function getRecentCommits(repoPath: string, limit = 30): Promise<{ commits: CommitLogEntry[]; resolvedRepoPath: string }> {
+  const resolvedRepoPath = resolveRepoPath(repoPath);
+  await assertGitRepo(resolvedRepoPath);
+
+  // Use ASCII unit/record separators instead of a delimiter like "|" so commit
+  // messages containing arbitrary characters can't be misparsed as field breaks.
+  const format = "%H%x1f%h%x1f%an%x1f%ad%x1f%s%x1e";
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", resolvedRepoPath, "log", "-n", String(limit), "--date=short", `--pretty=format:${format}`],
+      { maxBuffer: 1024 * 1024 * 10 },
+    );
+    const commits = stdout
+      .split("\x1e")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => {
+        const [hash, shortHash, author, date, message] = entry.split("\x1f");
+        return { hash, shortHash, author, date, message };
+      });
+    return { commits, resolvedRepoPath };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new GitDiffError(`git log 실행 실패: ${message}`, 500);
+  }
+}
+
 export type DiffResult = {
   diff: string;
   parent: string;
