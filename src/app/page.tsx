@@ -1,65 +1,104 @@
-import Image from "next/image";
+"use client";
+
+import { useState, type FormEvent } from "react";
+import DiffViewer from "@/components/DiffViewer";
+import FolderPicker from "@/components/FolderPicker";
 import styles from "./page.module.css";
 
+type DiffResponse = {
+  diff?: string;
+  parent?: string;
+  commit?: string;
+  error?: string;
+};
+
 export default function Home() {
+  const [repoPath, setRepoPath] = useState("");
+  const [commit, setCommit] = useState("");
+  const [diff, setDiff] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    setDiff(null);
+
+    try {
+      const params = new URLSearchParams({ repoPath, commit });
+      const res = await fetch(`/api/diff?${params.toString()}`);
+      const data: DiffResponse = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "diff를 가져오는 중 오류가 발생했습니다.");
+        return;
+      }
+
+      setDiff(data.diff ?? "");
+    } catch {
+      setError("서버 요청에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Warrant</h1>
+          <p className={styles.subtitle}>git diff를 커밋 단위로 비교하고 AI 리뷰 코멘트를 생성합니다.</p>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        <div className={styles.card}>
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.inputGroup}>
+              <input
+                type="text"
+                placeholder="저장소 로컬 경로 (예: C:\source\repos\my-project)"
+                value={repoPath}
+                onChange={(e) => setRepoPath(e.target.value)}
+                required
+                className={styles.input}
+              />
+              <button type="button" onClick={() => setPickerOpen(true)} className={styles.button}>
+                찾아보기...
+              </button>
+            </div>
+            <input
+              type="text"
+              placeholder="커밋 ID (예: a1b2c3d)"
+              value={commit}
+              onChange={(e) => setCommit(e.target.value)}
+              required
+              className={`${styles.input} ${styles.commitInput}`}
             />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button type="submit" disabled={loading} className={styles.buttonPrimary}>
+              {loading ? "조회 중..." : "비교하기"}
+            </button>
+          </form>
         </div>
+
+        {error && <div className={styles.errorBanner}>{error}</div>}
+
+        {diff !== null && (
+          <div className={styles.diffCard}>
+            <DiffViewer diff={diff} />
+          </div>
+        )}
+
+        {pickerOpen && (
+          <FolderPicker
+            initialPath={repoPath || undefined}
+            onClose={() => setPickerOpen(false)}
+            onSelect={(path) => {
+              setRepoPath(path);
+              setPickerOpen(false);
+            }}
+          />
+        )}
       </main>
     </div>
   );
