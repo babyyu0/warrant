@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import DiffViewer from "@/components/DiffViewer";
+import DiffViewer, { type ReviewComment } from "@/components/DiffViewer";
 import FolderPicker from "@/components/FolderPicker";
 import styles from "./page.module.css";
 
@@ -9,6 +9,12 @@ type DiffResponse = {
   diff?: string;
   parent?: string;
   commit?: string;
+  error?: string;
+};
+
+type ReviewResponse = {
+  summary?: string;
+  comments?: ReviewComment[];
   error?: string;
 };
 
@@ -21,6 +27,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [queriedRepoPath, setQueriedRepoPath] = useState("");
+  const [queriedCommit, setQueriedCommit] = useState("");
+  const [reviewSummary, setReviewSummary] = useState<string | null>(null);
+  const [reviewComments, setReviewComments] = useState<ReviewComment[]>([]);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   // One-time sync from localStorage (unavailable during SSR) after mount, so
   // server-rendered and hydrated markup match on the first pass.
@@ -48,6 +60,9 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setDiff(null);
+    setReviewSummary(null);
+    setReviewComments([]);
+    setReviewError(null);
 
     try {
       const params = new URLSearchParams({ repoPath, commit });
@@ -60,10 +75,40 @@ export default function Home() {
       }
 
       setDiff(data.diff ?? "");
+      setQueriedRepoPath(repoPath);
+      setQueriedCommit(commit);
     } catch {
       setError("서버 요청에 실패했습니다.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleReview() {
+    setReviewLoading(true);
+    setReviewError(null);
+    setReviewSummary(null);
+    setReviewComments([]);
+
+    try {
+      const res = await fetch("/api/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoPath: queriedRepoPath, commit: queriedCommit }),
+      });
+      const data: ReviewResponse = await res.json();
+
+      if (!res.ok) {
+        setReviewError(data.error ?? "리뷰 생성 중 오류가 발생했습니다.");
+        return;
+      }
+
+      setReviewSummary(data.summary ?? "");
+      setReviewComments(data.comments ?? []);
+    } catch {
+      setReviewError("서버 요청에 실패했습니다.");
+    } finally {
+      setReviewLoading(false);
     }
   }
 
@@ -106,9 +151,33 @@ export default function Home() {
 
         {error && <div className={styles.errorBanner}>{error}</div>}
 
+        {diff !== null && diff.trim() !== "" && (
+          <div className={styles.reviewBar}>
+            <button
+              type="button"
+              onClick={handleReview}
+              disabled={reviewLoading}
+              className={styles.buttonPrimary}
+            >
+              {reviewLoading ? "리뷰 생성 중..." : "AI 리뷰 받기"}
+            </button>
+          </div>
+        )}
+
+        {reviewError && <div className={styles.errorBanner}>{reviewError}</div>}
+
+        {reviewSummary !== null && (
+          <div className={styles.reviewCard}>
+            <div className={styles.reviewHeader}>
+              AI 리뷰 총평{reviewComments.length > 0 ? ` · 인라인 코멘트 ${reviewComments.length}개` : ""}
+            </div>
+            <p className={styles.reviewBody}>{reviewSummary || "(총평이 비어 있습니다.)"}</p>
+          </div>
+        )}
+
         {diff !== null && (
           <div className={styles.diffCard}>
-            <DiffViewer diff={diff} />
+            <DiffViewer diff={diff} comments={reviewComments} />
           </div>
         )}
 
