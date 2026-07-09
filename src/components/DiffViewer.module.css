@@ -154,6 +154,19 @@
 .content :global(.d2h-code-side-line) {
   white-space: normal;
   overflow-wrap: anywhere;
+  /* diff2html's default 4.5em/4.5em padding was sized for the original
+     horizontal-scroll layout, where the right side just needed breathing
+     room before the cut-off edge. Now that lines wrap, that unused right
+     padding shows up as a big empty gap before the pane's edge — keep the
+     left padding (clears the absolutely-positioned line-number gutter,
+     `.d2h-code-side-linenumber` at 4em) but shrink the right side down to
+     a minimal 1px.
+     This project's global reset sets `box-sizing: border-box`, so padding
+     is already carved out of `width` — plain `100%` (not diff2html's
+     `calc(100% - 9em)`, which double-subtracts) is what actually reaches
+     the container's full edge. */
+  padding: 0 1px 0 4.5em;
+  width: 100%;
 }
 
 .content :global(.d2h-code-line-ctn) {
