@@ -76,11 +76,11 @@ export default function Home() {
   }, [repoPath, commit]);
 
   // Fetches recent commits for the current repo path once the user opens the
-  // commit list (via "커밋 보기"), so they can find a commit ID to compare
-  // without leaving the app. Only relevant before a comparison is run — once
-  // `diff` is set, the diff/review view takes over and the button is hidden.
+  // commit list (via "커밋 보기"). Available regardless of whether a diff is
+  // currently shown — opening the list switches the view away from the
+  // diff/review to the commit list, so both need to stay in sync here.
   useEffect(() => {
-    if (diff !== null || !commitListOpen) return;
+    if (!commitListOpen) return;
     if (!repoPath.trim()) {
       /* eslint-disable react-hooks/set-state-in-effect --
          Clearing derived UI state (not a data fetch) when the path input is emptied. */
@@ -114,7 +114,7 @@ export default function Home() {
     }, GIT_LOG_DEBOUNCE_MS);
 
     return () => clearTimeout(timeout);
-  }, [repoPath, diff, commitListOpen]);
+  }, [repoPath, commitListOpen]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -220,7 +220,7 @@ export default function Home() {
 
         {error && <div className={styles.errorBanner}>{error}</div>}
 
-        {diff === null && commitListOpen && (
+        {commitListOpen && (
           <div className={styles.card}>
             <div className={styles.gitLogHeader}>최근 커밋{gitLogLoading ? " · 불러오는 중..." : ""}</div>
             {gitLogError && <div className={styles.errorBanner}>{gitLogError}</div>}
@@ -250,7 +250,7 @@ export default function Home() {
           </div>
         )}
 
-        {diff !== null && diff.trim() !== "" && (
+        {!commitListOpen && diff !== null && diff.trim() !== "" && (
           <div className={styles.reviewBar}>
             <button
               type="button"
@@ -263,9 +263,9 @@ export default function Home() {
           </div>
         )}
 
-        {reviewError && <div className={styles.errorBanner}>{reviewError}</div>}
+        {!commitListOpen && reviewError && <div className={styles.errorBanner}>{reviewError}</div>}
 
-        {reviewSummary !== null && (
+        {!commitListOpen && reviewSummary !== null && (
           <div className={styles.reviewCard}>
             <div className={styles.reviewHeader}>
               AI 리뷰 총평{reviewComments.length > 0 ? ` · 인라인 코멘트 ${reviewComments.length}개` : ""}
@@ -274,7 +274,7 @@ export default function Home() {
           </div>
         )}
 
-        {diff !== null && (
+        {!commitListOpen && diff !== null && (
           <div className={styles.diffCard}>
             <DiffViewer diff={diff} comments={reviewComments} />
           </div>
