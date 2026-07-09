@@ -78,7 +78,7 @@ export default function Home() {
   // Fetches recent commits for the current repo path once the user opens the
   // commit list (via "커밋 보기"), so they can find a commit ID to compare
   // without leaving the app. Only relevant before a comparison is run — once
-  // `diff` is set, the diff view takes over and this becomes moot.
+  // `diff` is set, the diff/review view takes over and the button is hidden.
   useEffect(() => {
     if (diff !== null || !commitListOpen) return;
     if (!repoPath.trim()) {
@@ -234,10 +234,7 @@ export default function Home() {
                     <button
                       type="button"
                       className={styles.gitLogItem}
-                      onClick={() => {
-                        setCommit(entry.shortHash);
-                        setCommitListOpen(false);
-                      }}
+                      onClick={() => setCommit(entry.shortHash)}
                       title={`${entry.shortHash} 를 커밋 ID로 사용`}
                     >
                       <span className={styles.gitLogHash}>{entry.shortHash}</span>
