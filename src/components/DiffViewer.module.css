@@ -135,12 +135,27 @@
 }
 
 /*
- * Wrap long code lines instead of relying on horizontal scroll. This must
- * target only `.d2h-code-line-ctn` (the leaf span holding the real text) —
- * diff2html's line template has real newlines/indentation *between* tags
- * inside `.d2h-code-side-line`, and applying pre-wrap that high up makes
- * the browser render that template formatting as extra blank lines.
+ * Wrap long code lines instead of relying on horizontal scroll. The real
+ * text lives in the leaf `.d2h-code-line-ctn` span, so that's where
+ * `pre-wrap` (preserves the code's own whitespace) belongs.
+ *
+ * Its ancestor `.d2h-code-side-line` still needs to allow wrapping too:
+ * diff2html leaves it at `white-space: nowrap`, and on lines with inline
+ * word-diff highlighting (a nested <del>/<ins>), the browser's table
+ * auto-layout sizes the column off that ancestor's *unwrapped* intrinsic
+ * width — wide enough that the child's own pre-wrap never gets triggered,
+ * so the line silently overflows past the pane instead of wrapping. `normal`
+ * (not `pre-wrap`) on the ancestor fixes the sizing without the problem
+ * `pre-wrap` would cause there: diff2html's line template has real
+ * newlines/indentation *between* tags inside `.d2h-code-side-line`, and
+ * `normal` collapses that template whitespace instead of rendering it as
+ * extra blank lines.
  */
+.content :global(.d2h-code-side-line) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .content :global(.d2h-code-line-ctn) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
