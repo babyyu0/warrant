@@ -152,6 +152,21 @@
  * extra blank lines.
  */
 .content :global(.d2h-code-side-line) {
+  /* diff2html lays the "+"/"-" prefix and the code out as two independent
+     inline-block boxes and leans on `white-space: nowrap` to keep them
+     glued to the same starting line. We need `normal` (below) so long
+     lines wrap instead of forcing the table wider than the pane — but
+     `.d2h-code-line-ctn` is sized to ~100% of this container, so once
+     wrapping is allowed there's *no* slack left for the prefix to share
+     that first line with it. Whether that overflow gets resolved by
+     shrinking the last character or by moving the whole ctn box to the
+     next line turns out to be a coin flip across browsers/versions (Edge
+     did the former, Chrome the latter) — flex sidesteps the ambiguity
+     entirely: on a `nowrap` flex line, items never individually wrap to a
+     new line, only shrink, so the prefix and the first line of code are
+     guaranteed to render together regardless of engine quirks. */
+  display: flex;
+  align-items: flex-start;
   white-space: normal;
   overflow-wrap: anywhere;
   /* diff2html's default 4.5em/4.5em padding was sized for the original
@@ -169,9 +184,18 @@
   width: 100%;
 }
 
+.content :global(.d2h-code-line-prefix) {
+  flex-shrink: 0;
+}
+
 .content :global(.d2h-code-line-ctn) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* Let this shrink below its content's natural width — flex items default
+     to `min-width: auto`, which would otherwise refuse to shrink past the
+     longest unbreakable run and defeat the wrapping this is here for. */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* Rows get stretched in JS to match their taller counterpart on the other
