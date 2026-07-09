@@ -1,4 +1,31 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+// Windows installers commonly add the CLI's directory to the *Machine* PATH,
+// which already-running processes (notably explorer.exe) don't pick up until
+// logoff/reboot. A batch file double-clicked from Explorer then inherits a
+// stale PATH and gets ENOENT even though the binary is installed and a fresh
+// terminal can find it fine. Checking well-known install locations directly
+// sidesteps that instead of depending on PATH alone.
+function resolveClaudeCommand(): string {
+  const home = os.homedir();
+  const candidates =
+    process.platform === "win32"
+      ? [
+          path.join(home, ".local", "bin", "claude.exe"),
+          path.join(process.env.APPDATA ?? path.join(home, "AppData", "Roaming"), "npm", "claude.cmd"),
+        ]
+      : [path.join(home, ".local", "bin", "claude"), "/usr/local/bin/claude"];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  // None of the known locations matched — fall back to PATH resolution,
+  // which still works whenever the environment happens to be fresh.
+  return "claude";
+}
 
 export class ClaudeCliError extends Error {
   status: number;
@@ -62,7 +89,7 @@ export function runClaudeCli<T = unknown>(options: ClaudeCliOptions): Promise<Cl
   if (jsonSchema !== undefined) args.push("--json-schema", JSON.stringify(jsonSchema));
 
   return new Promise((resolve, reject) => {
-    const child = spawn("claude", args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(resolveClaudeCommand(), args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
 
     let stdout = "";
     let stderr = "";
@@ -92,7 +119,8 @@ export function runClaudeCli<T = unknown>(options: ClaudeCliOptions): Promise<Cl
         if (err.code === "ENOENT") {
           reject(
             new ClaudeCliError(
-              "claude CLI를 찾을 수 없습니다. `npm install -g @anthropic-ai/claude-code`로 설치한 뒤 로그인해 주세요.",
+              "claude CLI를 찾을 수 없습니다. `npm install -g @anthropic-ai/claude-code`로 설치한 뒤 로그인해 주세요. " +
+                "설치되어 있는데도 이 오류가 발생한다면, 설치 후 PATH가 갱신되지 않은 것일 수 있습니다 — 로그아웃 후 다시 로그인하거나 PC를 재시작한 뒤 다시 시도해 주세요.",
               500,
             ),
           );

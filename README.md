@@ -42,6 +42,6 @@ npm start
 
 ## 문제 해결
 
-- **"claude CLI를 찾을 수 없습니다" 오류**: `npm install -g @anthropic-ai/claude-code` 설치 후 `claude login`으로 로그인했는지 확인하세요.
+- **"claude CLI를 찾을 수 없습니다" 오류**: `npm install -g @anthropic-ai/claude-code` 설치 후 `claude login`으로 로그인했는지 확인하세요. 설치가 되어 있는데도 이 오류가 뜬다면, 설치 직후라서 Windows 시스템 PATH 변경이 아직 탐색기(Explorer)에 반영되지 않은 것일 수 있습니다 — 로그아웃 후 재로그인하거나 PC를 재시작한 뒤 `start.bat`을 다시 실행해 보세요.
 - **"지정한 경로는 git 저장소가 아닙니다" 오류**: 입력한 경로가 `.git` 폴더를 포함한 저장소 루트인지 확인하세요.
 - **포트 3000이 이미 사용 중**: 다른 프로그램이 3000번 포트를 쓰고 있다면 `set PORT=3001 && npm start` (cmd) 또는 `$env:PORT=3001; npm start` (PowerShell)처럼 포트를 바꿔 실행하세요.
