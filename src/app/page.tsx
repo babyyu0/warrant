@@ -124,6 +124,9 @@ export default function Home() {
     setReviewSummary(null);
     setReviewComments([]);
     setReviewError(null);
+    // Switch back to the diff/review view in case the user compared while
+    // looking at the commit list.
+    setCommitListOpen(false);
 
     try {
       const params = new URLSearchParams({ repoPath, commit });
