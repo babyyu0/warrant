@@ -160,12 +160,12 @@
      padding shows up as a big empty gap before the pane's edge — keep the
      left padding (clears the absolutely-positioned line-number gutter,
      `.d2h-code-side-linenumber` at 4em) but shrink the right side down to
-     a minimal 1px.
+     a minimal 3px.
      This project's global reset sets `box-sizing: border-box`, so padding
      is already carved out of `width` — plain `100%` (not diff2html's
      `calc(100% - 9em)`, which double-subtracts) is what actually reaches
      the container's full edge. */
-  padding: 0 1px 0 4.5em;
+  padding: 0 3px 0 4.5em;
   width: 100%;
 }
 

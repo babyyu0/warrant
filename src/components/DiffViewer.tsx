@@ -68,6 +68,24 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
     const container = contentRef.current;
     if (!container) return;
 
+    // diff2html's line template has real newlines/indentation *between* the
+    // "+"/"-" prefix span and the code span inside `.d2h-code-side-line`.
+    // That element needs `white-space: normal` (see DiffViewer.module.css)
+    // so long lines don't force the table wider than the pane — but `normal`
+    // also turns that template whitespace into a real break opportunity,
+    // so a wrapped line could split right after the prefix instead of
+    // within the code. Stripping those whitespace-only text nodes removes
+    // the break point at its source instead of fighting it with CSS.
+    function stripLineTemplateWhitespace() {
+      container!.querySelectorAll(".d2h-code-side-line").forEach((line) => {
+        Array.from(line.childNodes).forEach((node) => {
+          if (node.nodeType === Node.TEXT_NODE && /^\s*$/.test(node.textContent ?? "")) {
+            node.remove();
+          }
+        });
+      });
+    }
+
     function insertComments(): void {
       container!.querySelectorAll(`.${INJECTED_ROW_CLASS}`).forEach((el) => el.remove());
       if (comments.length === 0) return;
@@ -170,33 +188,48 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
       });
     }
 
-    insertComments();
-    equalizeRowHeights();
+    // Some re-renders reset this container's `dangerouslySetInnerHTML` back to
+    // diff2html's pristine output — wiping whatever we've injected/stripped
+    // above — for reasons that don't line up with any prop/state change we can
+    // put in this effect's dependency array (observed even right after initial
+    // mount, with no click or comment update involved). Rather than chase every
+    // possible trigger, process once up front, then let a MutationObserver
+    // watch this container's own childList (the pristine root swap shows up
+    // there) and reprocess whenever that happens. Our own writes above only
+    // touch descendants of that root (rows inside its tables), never the
+    // container's direct children, so this can't loop back on itself.
+    function process(scroll: boolean) {
+      stripLineTemplateWhitespace();
+      insertComments();
+      equalizeRowHeights();
+      if (!scroll) return;
 
-    // Some re-renders reset this container's HTML back to diff2html's pristine
-    // output (losing whatever we just injected above), including the one
-    // triggered by clicking a file in the sidebar — so scrolling has to be
-    // decided fresh on every run of this effect, not just the first one.
-    // If a file is active (the user just clicked it), jump to that file's
-    // first comment, or its top if it has none. Otherwise (initial load of a
-    // fresh review) jump to the first comment anywhere so it isn't silently
-    // off-screen.
-    let scrollTarget: Element | null = null;
-    let scrollBlock: ScrollLogicalPosition = "start";
-    if (activeId) {
-      const activeWrapper = document.getElementById(activeId);
-      const firstCommentBox = activeWrapper?.querySelector(`.${styles.commentBox}`) ?? null;
-      if (firstCommentBox) {
-        scrollTarget = firstCommentBox.closest("tr");
-        scrollBlock = "center";
+      // If a file is active (the user just clicked it), jump to that file's
+      // first comment, or its top if it has none. Otherwise (initial load of
+      // a fresh review) jump to the first comment anywhere so it isn't
+      // silently off-screen.
+      let scrollTarget: Element | null = null;
+      let scrollBlock: ScrollLogicalPosition = "start";
+      if (activeId) {
+        const activeWrapper = document.getElementById(activeId);
+        const firstCommentBox = activeWrapper?.querySelector(`.${styles.commentBox}`) ?? null;
+        if (firstCommentBox) {
+          scrollTarget = firstCommentBox.closest("tr");
+          scrollBlock = "center";
+        } else {
+          scrollTarget = activeWrapper;
+        }
       } else {
-        scrollTarget = activeWrapper;
+        scrollTarget = container!.querySelector(`.${styles.commentBox}`)?.closest("tr") ?? null;
+        scrollBlock = "center";
       }
-    } else {
-      scrollTarget = container.querySelector(`.${styles.commentBox}`)?.closest("tr") ?? null;
-      scrollBlock = "center";
+      scrollTarget?.scrollIntoView({ block: scrollBlock });
     }
-    scrollTarget?.scrollIntoView({ block: scrollBlock });
+
+    process(true);
+
+    const resetObserver = new MutationObserver(() => process(false));
+    resetObserver.observe(container, { childList: true });
 
     let resizeTimeout: ReturnType<typeof setTimeout>;
     const onResize = () => {
@@ -206,6 +239,7 @@ export default function DiffViewer({ diff, comments = [] }: DiffViewerProps) {
     window.addEventListener("resize", onResize);
 
     return () => {
+      resetObserver.disconnect();
       clearTimeout(resizeTimeout);
       window.removeEventListener("resize", onResize);
     };
