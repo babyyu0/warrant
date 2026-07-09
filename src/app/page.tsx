@@ -43,6 +43,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [commitListOpen, setCommitListOpen] = useState(false);
   const [queriedRepoPath, setQueriedRepoPath] = useState("");
   const [queriedCommit, setQueriedCommit] = useState("");
   const [reviewSummary, setReviewSummary] = useState<string | null>(null);
@@ -74,12 +75,12 @@ export default function Home() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ repoPath, commit }));
   }, [repoPath, commit]);
 
-  // Shows recent commits for whatever repo path is currently typed in, so the
-  // user can find a commit ID to compare without leaving the app. Only
-  // relevant before a comparison is run — once `diff` is set, the diff view
-  // takes over and this becomes moot.
+  // Fetches recent commits for the current repo path once the user opens the
+  // commit list (via "커밋 보기"), so they can find a commit ID to compare
+  // without leaving the app. Only relevant before a comparison is run — once
+  // `diff` is set, the diff view takes over and this becomes moot.
   useEffect(() => {
-    if (diff !== null) return;
+    if (diff !== null || !commitListOpen) return;
     if (!repoPath.trim()) {
       /* eslint-disable react-hooks/set-state-in-effect --
          Clearing derived UI state (not a data fetch) when the path input is emptied. */
@@ -113,7 +114,7 @@ export default function Home() {
     }, GIT_LOG_DEBOUNCE_MS);
 
     return () => clearTimeout(timeout);
-  }, [repoPath, diff]);
+  }, [repoPath, diff, commitListOpen]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -194,6 +195,14 @@ export default function Home() {
               <button type="button" onClick={() => setPickerOpen(true)} className={styles.button}>
                 찾아보기...
               </button>
+              <button
+                type="button"
+                onClick={() => setCommitListOpen((open) => !open)}
+                disabled={!repoPath.trim()}
+                className={styles.button}
+              >
+                커밋 보기
+              </button>
             </div>
             <input
               type="text"
@@ -211,7 +220,7 @@ export default function Home() {
 
         {error && <div className={styles.errorBanner}>{error}</div>}
 
-        {diff === null && repoPath.trim() !== "" && (
+        {diff === null && commitListOpen && (
           <div className={styles.card}>
             <div className={styles.gitLogHeader}>최근 커밋{gitLogLoading ? " · 불러오는 중..." : ""}</div>
             {gitLogError && <div className={styles.errorBanner}>{gitLogError}</div>}
@@ -225,7 +234,10 @@ export default function Home() {
                     <button
                       type="button"
                       className={styles.gitLogItem}
-                      onClick={() => setCommit(entry.shortHash)}
+                      onClick={() => {
+                        setCommit(entry.shortHash);
+                        setCommitListOpen(false);
+                      }}
                       title={`${entry.shortHash} 를 커밋 ID로 사용`}
                     >
                       <span className={styles.gitLogHash}>{entry.shortHash}</span>
